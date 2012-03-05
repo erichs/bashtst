@@ -1,5 +1,8 @@
-A simple framework for testing bash scripts.
+bashtst - A simple framework for testing bash scripts
+=====================================================
 
 Based on code and ideas from Gary Bernhardt's excellent Destroy All Software screencasts.
 
-To use, add the /test directory to your git project, and write tests against your scripts one level above.
+To use, add the /test directory to your git project, and write tests against your scripts.
+
+See test/test-simple.sh for example test usage.

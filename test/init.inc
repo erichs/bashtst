@@ -12,50 +12,21 @@ GREEN="\033[0;32m"
   RED="\033[0;31m"
 RESET="\033[0;37;00m"
 
-setup() {
-    start_clock
-    REV=$1
-    fixture $REV  # load Git revision in test repository
-}
+# utility functions
+###################
 
-start_clock() {
-    START_TIME=$(date +%s)
-}
-
-stop_clock() {
-    END_TIME=$(date +%s)
-    echo "Testing took: $((END_TIME - START_TIME)) secs."
-}
-
-cleanup() {
-    cd ..
-    rm -rf test_repo 2>/dev/null
-    stop_clock
-}
-
-flunk() {
-    echo -e "${RED}FAIL: $*${RESET}"
-    exit 1
-}
-
-pass() {
-    echo -e "${GREEN}OK!${RESET}"
-}
-
-label() {
-    if [ -f .testnum ]; then
-        TESTNUM=`cat .testnum`
+assert() {
+    if eval "$*"; then
+        pass
     else
-        TESTNUM=0
+        flunk asserted $*
     fi
-    TESTNUM=$((TESTNUM+1))
-    echo -n "$TESTNUM. $1... "
-    echo $TESTNUM > .testnum
 }
 
-# this sets up a test fixture, exporting the latest revision of
-# the parent git repo, and using that to test against
 fixture() {
+    # this sets up a test fixture, exporting the latest revision of
+    # the parent git repo, and using that to test against
+
     local REV=$(git rev-parse --short HEAD)  # default to HEAD when no revision argument is specified
     if [ ! -z "$1" ]; then
         REV=$1
@@ -78,4 +49,45 @@ fixture() {
         cat ../test_repo.gz | gunzip | git fast-import --quiet
         git checkout --quiet $REV
         rm ../test_repo.gz
+}
+
+flunk() {
+    echo -e "${RED}FAIL: $*${RESET}"
+    exit 1
+}
+
+label() {
+    if [ -f .testnum ]; then
+        TESTNUM=`cat .testnum`
+    else
+        TESTNUM=0
+    fi
+    TESTNUM=$((TESTNUM+1))
+    echo -n "$TESTNUM. $*... "
+    echo $TESTNUM > .testnum
+}
+
+pass() {
+    echo -e "${GREEN}OK!${RESET}"
+}
+
+setup() {
+    start_clock
+    REV=$1
+    fixture $REV  # load Git revision in test repository
+}
+
+start_clock() {
+    START_TIME=$(date +%s)
+}
+
+stop_clock() {
+    END_TIME=$(date +%s)
+    echo "Running $(basename $0) took: $((END_TIME - START_TIME)) secs."
+}
+
+teardown() {
+    cd ..
+    rm -rf test_repo 2>/dev/null
+    stop_clock
 }
