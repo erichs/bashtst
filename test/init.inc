@@ -12,14 +12,11 @@ GREEN="\033[0;32m"
   RED="\033[0;31m"
 RESET="\033[0;37;00m"
 
-# utility functions
-###################
-
 assert() {
     if eval "$*"; then
         pass
     else
-        flunk asserted $*
+        flunk $label: asserted $*
     fi
 }
 
@@ -28,10 +25,10 @@ fixture() {
     # the parent git repo, and using that to test against
 
     local REV=$(git rev-parse --short HEAD)  # default to HEAD when no revision argument is specified
-    if [ ! -z "$1" ]; then
+    if [ $# -gt 0 ]; then
         REV=$1
     fi
-    echo "Setting up fixture repo for revision $REV..."
+    discreet_echo "Setting up fixture repo for revision $REV...\n"
 
     if [ -x test_repo ]; then
         rm -rf test_repo
@@ -39,7 +36,7 @@ fixture() {
 
 
     mkdir test_repo
-    cd test_repo
+    cd test_repo  >/dev/null
 
     git init --quiet
     (
@@ -52,28 +49,34 @@ fixture() {
 }
 
 flunk() {
-    echo -e "${RED}FAIL: $*${RESET}"
+    echo -e "${RED}$(basename $0) FAIL: $*${RESET}"
     exit 1
 }
 
-label() {
-    if [ -f .testnum ]; then
-        TESTNUM=`cat .testnum`
+discreet_echo() { local loudstr=$1 softstr=${2:-}
+    if [ -n "${VERBOSE:-}" ]; then
+        echo -en "$loudstr"
     else
-        TESTNUM=0
+        echo -en "$softstr"
     fi
-    TESTNUM=$((TESTNUM+1))
-    echo -n "$TESTNUM. $*... "
-    echo $TESTNUM > .testnum
+}
+
+label() {
+   label=$*
+   if [ -z "${testnum:-}" ]; then
+       testnum=0
+   fi
+   testnum=$((testnum + 1))
+   discreet_echo "${testnum}. $label... "
 }
 
 pass() {
-    echo -e "${GREEN}OK!${RESET}"
+    discreet_echo "${GREEN}OK!${RESET}\n" "${GREEN}.${RESET}"
 }
 
 setup() {
     start_clock
-    REV=$1
+    REV=${1:-}
     fixture $REV  # load Git revision in test repository
 }
 
@@ -82,12 +85,23 @@ start_clock() {
 }
 
 stop_clock() {
-    END_TIME=$(date +%s)
-    echo "Running $(basename $0) took: $((END_TIME - START_TIME)) secs."
+    local END_TIME=$(date +%s)
+    local total=$((END_TIME - START_TIME))
+    discreet_echo "\nRunning $(basename $0) took: $total secs.\n" "  ${total}s\n"
 }
 
 teardown() {
+    local RC=$?
+    unset testnum
     cd ..
+    rm -rf test_repo.gz 2>/dev/null
     rm -rf test_repo 2>/dev/null
     stop_clock
+    if [ $RC -ne 0 ]; then
+        flunk "One or more tests did not pass!"
+    fi
+}
+
+greplines() { local grepstr=${1:-}
+    echo $(grep "$grepstr" | wc -l)
 }
